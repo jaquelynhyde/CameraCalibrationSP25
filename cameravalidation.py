@@ -210,6 +210,10 @@ if ret == True:
       
     #to do.. determine bin number in a smarter way...
     
+    abs_errors = np.abs(errors)
+    abs_errors_x = np.abs(errors_x)
+    abs_errors_y = np.abs(errors_y)
+    
     plt.hist(errors, bins = 20, edgecolor='black')
     plt.xlabel("Error (mm)")
     plt.ylabel("Frequency")
@@ -227,6 +231,54 @@ if ret == True:
     plt.ylabel("Frequency")
     plt.title("Total Y Distance Error Distribution")
     plt.show()
+    
+    plt.hist(abs_errors, bins = 20, edgecolor='black')
+    plt.xlabel("Error (mm)")
+    plt.ylabel("Frequency")
+    plt.title("Total Absolute Distance Error Distribution")
+    plt.show()
+        
+    plt.hist(abs_errors_x, bins = 20, edgecolor='black')
+    plt.xlabel("X Error (mm)")
+    plt.ylabel("Frequency")
+    plt.title("Total Absolute X Distance Error Distribution")
+    plt.show()
+    
+    plt.hist(abs_errors_y, bins = 20, edgecolor='black')
+    plt.xlabel("Y Error (mm)")
+    plt.ylabel("Frequency")
+    plt.title("Total Absolute Y Distance Error Distribution")
+    plt.show()
+    
+    print("abs_Mean Distance Error: " + str(np.mean(abs_errors)))
+    print("abs_Median Distance Error: " + str(np.median(abs_errors)))
+    print("abs_Distance Error Standard Deviation: " + str(np.std(abs_errors)))
+    print("abs_Distance Error Variance: " + str(np.var(abs_errors)))
+    print("abs_Distance Error Percentile 1: " + str(np.percentile(abs_errors, 1)))
+    print("abs_Distance Error Percentile 25: " + str(np.percentile(abs_errors, 25)))
+    print("abs_Distance Error Percentile 50: " + str(np.percentile(abs_errors, 50)))
+    print("abs_Distance Error Percentile 75: " + str(np.percentile(abs_errors, 75)))    
+    print("abs_Distance Error Percentile 99: " + str(np.percentile(abs_errors, 99)))
+    
+    print("abs_X Mean Distance Error: " + str(np.mean(abs_errors_x)))
+    print("abs_X Median Distance Error: " + str(np.median(abs_errors_x)))
+    print("abs_X Distance Error Standard Deviation: " + str(np.std(abs_errors_x)))
+    print("abs_X Distance Error Variance: " + str(np.var(abs_errors_x)))
+    print("abs_X Distance Error Percentile 1: " + str(np.percentile(abs_errors_x, 1)))
+    print("abs_X Distance Error Percentile 25: " + str(np.percentile(abs_errors_x, 25)))
+    print("abs_X Distance Error Percentile 50: " + str(np.percentile(abs_errors_x, 50)))
+    print("abs_X Distance Error Percentile 75: " + str(np.percentile(abs_errors_x, 75)))    
+    print("abs_X Distance Error Percentile 99: " + str(np.percentile(abs_errors_x, 99)))
+    
+    print("abs_Y Mean Distance Error: " + str(np.mean(abs_errors_y)))
+    print("abs_Y Median Distance Error: " + str(np.median(abs_errors_y)))
+    print("abs_Y Distance Error Standard Deviation: " + str(np.std(abs_errors_y)))
+    print("abs_Y Distance Error Variance: " + str(np.var(abs_errors_y)))
+    print("abs_Y Distance Error Percentile 1: " + str(np.percentile(abs_errors_y, 1)))
+    print("abs_Y Distance Error Percentile 25: " + str(np.percentile(abs_errors_y, 25)))
+    print("abs_Y Distance Error Percentile 50: " + str(np.percentile(abs_errors_y, 50)))
+    print("abs_Y Distance Error Percentile 75: " + str(np.percentile(abs_errors_y, 75)))    
+    print("abs_Y Distance Error Percentile 99: " + str(np.percentile(abs_errors_y, 99)))
     
     print("Mean Distance Error: " + str(np.mean(errors)))
     print("Median Distance Error: " + str(np.median(errors)))
