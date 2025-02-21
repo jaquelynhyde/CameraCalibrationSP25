@@ -1,21 +1,11 @@
 # -*- coding: utf-8 -*-
-"""
 
-takes:
-    a series of images, the first should be a front view of the calib target
-    the length of a side of a square in the calibration target
-    
-outputs:
-    an estimation of the mm/pixel ratio in the front view of the calib target
-    a view of each of the images, before and after distortion
-    measurements of lengths across the target, before and after distortion
-"""
 
 import numpy as np
 import cv2 as cv   
 import matplotlib.pyplot as plt
 
-debug = False
+debug = True
 
 window_name = "Camera Validation"
 
@@ -92,6 +82,9 @@ if ret == True:
     num_vertical_distances = 0
     
     
+    # todo: investigate how to eliminate redundant calculations? 
+    
+    # reimplement this so you can look at y distances within some column
     for r in range(board_rows):
         for c in range(board_cols):
             
@@ -100,7 +93,7 @@ if ret == True:
                 
                 # maybe we calculate vertical and horizontal differences here too
                 
-                # this one finds the next corner to the right, assuming a rectangular target
+                # this one finds the next corner to the left, assuming a rectangular target
                 point1 = corners2[c * board_rows + r][0]        
                 point2 = corners2[(c + 1) * board_rows + r][0]
                 
@@ -137,6 +130,9 @@ if ret == True:
     errors = [] # we can calculate the anticipated size of these ahead of time and save a little performance time if its importance
     errors_x = []
     errors_y = []
+    delerrors = []
+    delerrors_x = []
+    delerrors_y = []
     mean_error = 0
     
     # unclear if these need to be defined seperately for 2d histograms or if we can just use the existing arrays
@@ -158,57 +154,58 @@ if ret == True:
     print("image_data (empty)")
     print(image_data)
     
-    # five four loops with changing images (from an array)
     
-    # sorry for the four for loops 😪
+    # loop through the bottom row of columns
+    # measure the distance between it and points in that column above it
+    
     for c1 in range(board_cols):
-        for r1 in range(board_rows):
+        
+        p1_real = [ (c1 + 1) * square_side_length , 
+                    board_rows * square_side_length ]
+        
+        p1_pixel = corners[(board_rows * board_cols - 1) - (c1 * board_rows)][0]
+        
+        if debug:
+            print("for p1 : " + str(p1_real) + " // " + str(p1_pixel))
             
-            # was having trouble directly getting these from objpoints
-            # so we manually calculate them, making sure they match the form of
-            # corners2 (i.e. - starting from the top right corner and going down rows in each column)
-            p1_real = [ (board_cols - c1 - 1) * square_side_length ,
-                        r1 * square_side_length] 
+        for r2 in range(board_rows - 1):
             
-            p1_pixel = corners2[c1 * board_rows + r1][0]
+            p2_real = [ (c1 + 1) * square_side_length , 
+                        (board_rows - r2 - 1) * square_side_length ]
+            
+            p2_pixel = corners[(board_rows * board_cols - 1) - (c1 * board_rows) - r2 - 1][0]
             
             if debug:
-                print("for r1, c1 " + str(r1) + ", " + str(c1))
-                print("p1 real / p1_pixel " + str(p1_real) + ", " + str(p1_pixel))
+                print("for p2 : " + str(p2_real) + " // " + str(p2_pixel))
+                
+            real_distance = np.sqrt( (p2_real[0] - p1_real[0]) ** 2 + (p2_real[1] - p1_real[1]) ** 2 )
             
+            real_distance_x = p2_real[0] - p1_real[0]
+            real_distance_y = p2_real[1] - p1_real[1]
             
-            for c2 in range(board_cols):
-                for r2 in range(board_rows):
-                    p2_real = [ (board_cols - c2 - 1) * square_side_length ,
-                                r2 * square_side_length] 
-                    p2_pixel = corners2[c2 * board_rows + r2][0]
-                    
-                    real_distance = np.sqrt( (p2_real[0] - p1_real[0]) ** 2 + (p2_real[1] - p1_real[1]) ** 2 )
-                    
-                    real_distance_x = p2_real[0] - p1_real[0]
-                    real_distance_y = p2_real[1] - p1_real[1]
-                    
-                    pixel_distance = np.sqrt( (p2_pixel[0] - p1_pixel[0]) ** 2 + (p2_pixel[1] - p1_pixel[1]) ** 2 )
-                    
-                    pixel_distance_x = p2_pixel[0] - p1_pixel[0]
-                    pixel_distance_y = p2_pixel[1] - p1_pixel[1]
-                    
-                    theo_distance = pixel_distance * mm_pixel_ratio
-                    theo_distance_x = pixel_distance_x * mm_pixel_ratio 
-                    theo_distance_y = pixel_distance_y * mm_pixel_ratio
-                    
-                    errors.append(theo_distance - real_distance)
-                    errors_x.append(theo_distance_x - real_distance_x)
-                    errors_y.append(theo_distance_y - real_distance_y)
-                    
-                    if debug:
-                        print("for r2, c2 " + str(r2) + ", " + str(c2))
-                        print("p2 real / p2_pixel " + str(p2_real) + ", " + str(p2_pixel))
-                        print("real distance : " + str(real_distance) )
-                        print("pixel_distance : " + str(pixel_distance) )
-                        print("theoretical real distance : " + str(theo_distance))
-      
-    #to do.. determine bin number in a smarter way...
+            pixel_distance = np.sqrt( (p2_pixel[0] - p1_pixel[0]) ** 2 + (p2_pixel[1] - p1_pixel[1]) ** 2 )
+            
+            pixel_distance_x = p2_pixel[0] - p1_pixel[0]
+            pixel_distance_y = p2_pixel[1] - p1_pixel[1]
+            
+            theo_distance = pixel_distance * mm_pixel_ratio
+            theo_distance_x = pixel_distance_x * mm_pixel_ratio 
+            theo_distance_y = pixel_distance_y * mm_pixel_ratio
+            
+            errors.append(theo_distance - real_distance)
+            errors_x.append(theo_distance_x - real_distance_x)
+            errors_y.append(theo_distance_y - real_distance_y)
+            
+            if (c1 + r2) > 0:
+                delerrors.append(errors[c1 + r2] - errors[c1 + r2 - 1])
+                delerrors_x.append(errors_x[c1 + r2] - errors_x[c1 + r2 - 1])
+                delerrors_y.append(errors_y[c1 + r2] - errors_y[c1 + r2 - 1])
+            
+            if debug:
+                print("real distance : " + str(real_distance) + " | " + "pixel_distance : " + str(pixel_distance)  + " | " + "theoretical real distance : " + str(theo_distance) )
+                print("error : " + str(theo_distance - real_distance) + " | " + "error_x : " + str(theo_distance_x - real_distance_x)  + " | " + "error_y : " + str(theo_distance_y - real_distance_y) )
+                if (c1 + r2) > 0:
+                    print("delta error : " + str(errors[c1 + r2] - errors[c1 + r2 - 1]) + " | " + "delta error_x : " + str(errors_x[c1 + r2] - errors_x[c1 + r2 - 1])  + " | " + "delta error_y : " + str(errors_y[c1 + r2] - errors_y[c1 + r2 - 1]) )
     
     abs_errors = np.abs(errors)
     abs_errors_x = np.abs(errors_x)
@@ -230,6 +227,24 @@ if ret == True:
     plt.xlabel("Y Error (mm)")
     plt.ylabel("Frequency")
     plt.title("Total Y Distance Error Distribution")
+    plt.show()
+    
+    plt.hist(delerrors, bins = 20, edgecolor='black')
+    plt.xlabel("Error (mm)")
+    plt.ylabel("Frequency")
+    plt.title("Total Distance Error Delta Distribution")
+    plt.show()
+        
+    plt.hist(delerrors_x, bins = 20, edgecolor='black')
+    plt.xlabel("X Error (mm)")
+    plt.ylabel("Frequency")
+    plt.title("Total X Distance Error Delta Distribution")
+    plt.show()
+    
+    plt.hist(delerrors_y, bins = 20, edgecolor='black')
+    plt.xlabel("Y Error (mm)")
+    plt.ylabel("Frequency")
+    plt.title("Total Y Distance Error Delta Distribution")
     plt.show()
     
     plt.hist(abs_errors, bins = 20, edgecolor='black')
@@ -308,21 +323,7 @@ if ret == True:
     print("Y Distance Error Percentile 25: " + str(np.percentile(errors_y, 25)))
     print("Y Distance Error Percentile 50: " + str(np.percentile(errors_y, 50)))
     print("Y Distance Error Percentile 75: " + str(np.percentile(errors_y, 75)))    
-    print("Y Distance Error Percentile 99: " + str(np.percentile(errors_y, 99)))
-    
-    # it would be benefical to look at how this changes if we ONLY look at the x/y axis
-    
-    # also, we should graph the x/y error at each point we calculate it at - 
-    
-    # now, let's calibrate the camera matrix, and use it to undistort the image
-    # opencv needs a set of points in the real world and in the image to do this
-    # the cursed numpy addressing gives the function the resolution of the image the way it likes
-    # but i'm not 100% sure on how that parameter affects the final matrix 
-    # i imagine it would change the image center or focal length or something to be in terms of pixels?
-    
-    # i wonder if we could improve this by finding objpoints and imgpoints for a set of images 
-    # where the calibration target moves along the z axis
-    # or develop a calibration target with some 3d element to it
+    print("Y Distance Error Percentile 99: " + str(np.percentile(errors_y, 99)))    
     
     ret, mtx, dist, rvecs, tvecs = cv.calibrateCamera(objpoints, imgpoints, gray_image.shape[::-1], None, None)
     
@@ -355,7 +356,7 @@ if ret == True:
         
     # to do - loop through imgpoints and collect distance between points in each array
         
-    projection_error_mean = projection_error_abs / len(objpoints)
+    projection_error_mean = projection_error_abs / len(objpoints[0]) # this is dividing by 1 because objpoints is a weird array -_- fix later
     
     print("absolute projection error:")
     print(projection_error_abs)
