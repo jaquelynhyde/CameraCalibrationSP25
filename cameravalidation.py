@@ -1,5 +1,9 @@
 # -*- coding: utf-8 -*-
 
+# note to self: is it possible to adjust the corners we're checking against
+# by a factor determined by the distortion equation the camera matrix gives?
+
+# todo: refactor this and make some functions already -_-
 
 import numpy as np
 import cv2 as cv   
@@ -83,6 +87,7 @@ if ret == True:
     
     
     # todo: investigate how to eliminate redundant calculations? 
+    # visualize this stage to validate the process
     
     # reimplement this so you can look at y distances within some column
     for r in range(board_rows):
@@ -122,6 +127,8 @@ if ret == True:
     print("mm pixel ratio:")
     print(mm_pixel_ratio)
     
+    #todo: this step should be visualized also
+    
     # now, let's measure between various distances on the chessboard with the
     # calculated ratio versus ground truth assuming the square side length is accurate
     cumulative_error_mm = 0
@@ -141,39 +148,30 @@ if ret == True:
     
     # it would also be interesting to see if the real distances calculated here and the pixel distances
     # calculated later with imgpoints2 line up
-    real_x_coords = np.arange(0, square_side_length * (board_cols + 1), square_side_length)
-    real_y_coords = np.arange(0, square_side_length * (board_rows + 1), square_side_length)
     
-    print("real x coords")
-    print(real_x_coords)
-    print("real y coords")
-    print(real_y_coords)
-    
-    image_data = np.zeros((len(real_x_coords), len(real_y_coords)))
-    
-    print("image_data (empty)")
-    print(image_data)
-    
+
     
     # loop through the bottom row of columns
     # measure the distance between it and points in that column above it
+    
+    # modify this so you compare the bottom row against itself
     
     for c1 in range(board_cols):
         
         p1_real = [ (c1 + 1) * square_side_length , 
                     board_rows * square_side_length ]
         
-        p1_pixel = corners[(board_rows * board_cols - 1) - (c1 * board_rows)][0]
+        p1_pixel = corners2[(board_rows * board_cols - 1) - (c1 * board_rows)][0]
         
         if debug:
             print("for p1 : " + str(p1_real) + " // " + str(p1_pixel))
             
-        for r2 in range(board_rows - 1):
+        for r2 in range(board_rows):
             
             p2_real = [ (c1 + 1) * square_side_length , 
-                        (board_rows - r2 - 1) * square_side_length ]
+                        (board_rows - r2) * square_side_length ]
             
-            p2_pixel = corners[(board_rows * board_cols - 1) - (c1 * board_rows) - r2 - 1][0]
+            p2_pixel = corners2[(board_rows * board_cols - 1) - (c1 * board_rows) - r2][0]
             
             if debug:
                 print("for p2 : " + str(p2_real) + " // " + str(p2_pixel))
@@ -196,6 +194,21 @@ if ret == True:
             errors_x.append(theo_distance_x - real_distance_x)
             errors_y.append(theo_distance_y - real_distance_y)
             
+            
+            
+            
+            """
+            for p2 : [468, 132] // [1148.6586   482.43848]
+            real distance : 48.0 | pixel_distance : 104.22389737663727 | theoretical real distance : 46.47958926741875
+            error : -1.5204107325812473 | error_x : 1.0076540330778292 | error_y : 1.531334731697207
+            delta error : 0.4575718061970804 | delta error_x : -0.021060840305077537 | delta error_y : -0.45757890518490285
+            for p2 : [468, 120] // [1149.1991   456.40964]
+            real distance : 60.0 | pixel_distance : 130.2583395362692 | theoretical real distance : 58.08988411192253
+            error : -1.9101158880774705 | error_x : 1.2487070886406941 | error_y : 1.9235386172386626
+            delta error : -4.303620172049829 | delta error_x : -0.01439894606964267 | delta error_y : 4.303643518000001
+            """
+            
+            # double check the indexing here later, sometimes the delta is too big? 
             if (c1 + r2) > 0:
                 delerrors.append(errors[c1 + r2] - errors[c1 + r2 - 1])
                 delerrors_x.append(errors_x[c1 + r2] - errors_x[c1 + r2 - 1])
@@ -206,11 +219,101 @@ if ret == True:
                 print("error : " + str(theo_distance - real_distance) + " | " + "error_x : " + str(theo_distance_x - real_distance_x)  + " | " + "error_y : " + str(theo_distance_y - real_distance_y) )
                 if (c1 + r2) > 0:
                     print("delta error : " + str(errors[c1 + r2] - errors[c1 + r2 - 1]) + " | " + "delta error_x : " + str(errors_x[c1 + r2] - errors_x[c1 + r2 - 1])  + " | " + "delta error_y : " + str(errors_y[c1 + r2] - errors_y[c1 + r2 - 1]) )
-    
+ 
+    # really important to do:
+        # retrieve all the x and y points associated with the error calculation array
+        # plot them here
+        
+        # work on your poster presentation
+        # https://research.mnsu.edu/undergraduate-research-center/undergraduate-research-center-present-and-publish/undergraduate-research-symposium/
+ 
+       
     abs_errors = np.abs(errors)
     abs_errors_x = np.abs(errors_x)
     abs_errors_y = np.abs(errors_y)
     
+    plt.figure(dpi=300)
+    plt.imshow(gray_image)
+    
+    # should this part be using the real world distances, or pixel locations, or...?
+    x_array = np.arange(square_side_length, square_side_length * (board_cols + 1), square_side_length)
+    y_array = np.arange(square_side_length, square_side_length * (board_rows + 1), square_side_length)
+    
+    print("real x coords")
+    print(x_array)
+    print("real y coords")
+    print(y_array)
+        
+    x_arranged, y_arranged = np.meshgrid(x_array, y_array)
+    
+    print("x_arranged")
+    print(x_arranged)
+    print("y_arranged")
+    print(y_arranged)
+    
+    e_array = np.array(errors)
+    x_e_array = np.array(errors_x)
+    y_e_array = np.array(errors_y)
+    
+    e_arranged = e_array.reshape((board_rows,board_cols))    
+    x_e_arranged = x_e_array.reshape((board_rows,board_cols)) 
+    y_e_arranged = y_e_array.reshape((board_rows,board_cols))    
+    
+    print("errors")
+    print(errors)
+    print("e_array")
+    print(e_array)
+    print("e_arranged")
+    print(e_arranged)
+    
+    plt.imshow(gray_image)
+    
+    # check out the example below and figure out how to reshape errors so its correct
+    
+    # todo: learn more abt subplots
+    # make more of these that show x and y error once u know the syntax is right
+    contourfig, ax2 = plt.subplots(layout = 'constrained')
+    CS = ax2.contourf(x_arranged, y_arranged, e_arranged, levels = 10, cmap = 'viridis')
+    CS2 = ax2.contour(CS, levels = CS.levels[::2], colors='r')
+    ax2.set_title('Error in Calculated Real Distance from Bottom')
+    ax2.set_xlabel('?')
+    ax2.set_ylabel('?') # not sure what to label these
+    cbar = contourfig.colorbar(CS)
+    cbar.ax.set_ylabel('Error Magnitude')
+    cbar.add_lines(CS2)
+    
+    plt.show()
+    
+    xcontourfig, xax2 = plt.subplots(layout = 'constrained')
+    xCS = xax2.contourf(x_arranged, y_arranged, x_e_arranged, levels = 10, cmap = 'inferno')
+    xCS2 = xax2.contour(xCS, levels = xCS.levels[::2], colors='r')
+    xax2.set_title('Error in Calculated X Real Distance from Bottom')
+    xax2.set_xlabel('?')
+    xax2.set_ylabel('?') # not sure what to label these
+    xcbar = xcontourfig.colorbar(xCS)
+    xcbar.ax.set_ylabel('Error Magnitude')
+    xcbar.add_lines(xCS2)
+    
+    plt.show()
+    
+    ycontourfig, yax2 = plt.subplots(layout = 'constrained')
+    yCS = yax2.contourf(x_arranged, y_arranged, y_e_arranged, levels = 10, cmap = 'plasma')
+    yCS2 = yax2.contour(yCS, levels = yCS.levels[::2], colors='r')
+    yax2.set_title('Error in Calculated Y Real Distance from Bottom')
+    yax2.set_xlabel('?')
+    yax2.set_ylabel('?') # not sure what to label these
+    ycbar = ycontourfig.colorbar(yCS)
+    ycbar.ax.set_ylabel('Error Magnitude')
+    ycbar.add_lines(yCS2)
+    
+    plt.show()
+    
+    
+#https://matplotlib.org/stable/gallery/images_contours_and_fields/layer_images.html
+#https://matplotlib.org/stable/gallery/images_contours_and_fields/contourf_demo.html
+
+# todo: refactor so you're using the same kind of syntax as you do w/ the contour plot above
+
     plt.hist(errors, bins = 20, edgecolor='black')
     plt.xlabel("Error (mm)")
     plt.ylabel("Frequency")
