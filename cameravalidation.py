@@ -1,21 +1,15 @@
 # -*- coding: utf-8 -*-
-"""
 
-takes:
-    a series of images, the first should be a front view of the calib target
-    the length of a side of a square in the calibration target
-    
-outputs:
-    an estimation of the mm/pixel ratio in the front view of the calib target
-    a view of each of the images, before and after distortion
-    measurements of lengths across the target, before and after distortion
-"""
+# note to self: is it possible to adjust the corners we're checking against
+# by a factor determined by the distortion equation the camera matrix gives?
+
+# todo: refactor this and make some functions already -_-
 
 import numpy as np
 import cv2 as cv   
 import matplotlib.pyplot as plt
 
-debug = False
+debug = True
 
 window_name = "Camera Validation"
 
@@ -79,6 +73,59 @@ if ret == True:
     imgpoints.append(corners2)
     print("imgpoints")
     print(imgpoints)
+    
+    # find the camera and distortion matrixes
+    
+    ret, mtx, dist, rvecs, tvecs = cv.calibrateCamera(objpoints, imgpoints, gray_image.shape[::-1], None, None)
+    
+    print("intrinsic parameter matrix:")
+    print(mtx)
+    print("distortion parameters:")  # check to see if the x and y distortion equations are different
+    print(dist)
+    print("rotation matrix:")
+    print(rvecs)
+    print("translation matrix:")
+    print(tvecs)
+    
+    print('distortion equations for 5 distortion parameters')
+    print('x radial distortion : x_d = x_o(1 + ' + str(dist[0][0]) + 'r^2 + ' + str(dist[0][1]) + 'r^4 + ' + str(dist[0][4]) + 'r^6 + ')
+    print('y radial distortion : y_d = y_o(1 + ' + str(dist[0][0]) + 'r^2 + ' + str(dist[0][1]) + 'r^4 + ' + str(dist[0][4]) + 'r^6 + ')
+    print('x tangental distortion : x_d = x_o + (2*' + str(dist[0][2]) + 'xy + ' + str(dist[0][3]) + '(r^2 + 2x^2))')
+    print('y tangental distortion : y_d = y_d + (' + str(dist[0][2]) +'(r^2 + 2y^2) + 2*' + str(dist[0][3]) + 'xy)')
+    
+    # find chessboard corners again after undistorting the image
+    
+    undistorted = cv.undistort(gray_image, mtx, dist, None)
+    
+    imgpoints2 = []
+    
+    ret, corners3 = cv.findChessboardCorners(undistorted, (board_rows, board_cols), None)
+    
+    # refine the locations of the points with 'sub pixels' and save them too
+    corners4 = cv.cornerSubPix(undistorted, corners3, (11, 11), (-1, -1), termination_criteria)
+    print("corners4")
+    print(corners4)
+    imgpoints2.append(corners4)
+    print("imgpoints2")
+    print(imgpoints2)
+    
+    #calibrateCamera returns even more data such as standard deviations etc
+    # read the docs here: https://docs.opencv.org/4.x/d9/d0c/group__calib3d.html#ga3207604e4b1a1758aa66acb6ed5aa65d 
+    
+    # the opencv docs provide this method of calculating error, which to my understanding,
+    # goes through every point and finds the imgpoint it *should* occupy 
+    
+    # the fancy way they do this makes me feel like my loop could be optimized a lot
+    # ( which was already obvious, but, )
+    # i don't know what the norm of an array/matrix stuff does i need to research that
+    
+    projection_error_abs = 0 
+    projection_error_mean = 0 
+    
+    for i in range(len(objpoints)):
+        imgpoints5, _ = cv.projectPoints(objpoints[i], rvecs[i], tvecs[i], mtx, dist)
+        error = cv.norm(imgpoints2[i], imgpoints5, cv.NORM_L2)/len(imgpoints2) # ??? 😐
+        projection_error_abs += error
 
     # loop through corners2 to find the average distance in pixels between 
     # adjacent squares on the chessboard
@@ -92,6 +139,10 @@ if ret == True:
     num_vertical_distances = 0
     
     
+    # todo: investigate how to eliminate redundant calculations? 
+    # visualize this stage to validate the process
+    
+    # reimplement this so you can look at y distances within some column
     for r in range(board_rows):
         for c in range(board_cols):
             
@@ -100,9 +151,9 @@ if ret == True:
                 
                 # maybe we calculate vertical and horizontal differences here too
                 
-                # this one finds the next corner to the right, assuming a rectangular target
-                point1 = corners2[c * board_rows + r][0]        
-                point2 = corners2[(c + 1) * board_rows + r][0]
+                # this one finds the next corner to the left, assuming a rectangular target
+                point1 = corners4[c * board_rows + r][0]        
+                point2 = corners4[(c + 1) * board_rows + r][0]
                 
                 distance = np.sqrt((point2[0] - point1[0]) ** 2 + (point2[1] - point1[1]) ** 2)
                 
@@ -110,8 +161,8 @@ if ret == True:
                 num_horizontal_distances += 1
             if r < board_rows - 1:
                 # this one finds the next corner down, assuming a rectangular target
-                point1 = corners2[c * board_rows + r][0]
-                point2 = corners2[c * board_rows + r + 1][0]
+                point1 = corners4[c * board_rows + r][0]
+                point2 = corners4[c * board_rows + r + 1][0]
                 
                 distance = np.sqrt((point2[0] - point1[0]) ** 2 + (point2[1] - point1[1]) ** 2)
 
@@ -129,6 +180,19 @@ if ret == True:
     print("mm pixel ratio:")
     print(mm_pixel_ratio)
     
+    
+        
+    # to do - loop through imgpoints and collect distance between points in each array
+        
+    projection_error_mean = projection_error_abs / len(objpoints[0]) # this is dividing by 1 because objpoints is a weird array -_- fix later
+    
+    print("absolute projection error:")
+    print(projection_error_abs)
+    print("mean projection error:")
+    print(projection_error_mean)
+    
+    #todo: this step should be visualized also
+    
     # now, let's measure between various distances on the chessboard with the
     # calculated ratio versus ground truth assuming the square side length is accurate
     cumulative_error_mm = 0
@@ -137,6 +201,9 @@ if ret == True:
     errors = [] # we can calculate the anticipated size of these ahead of time and save a little performance time if its importance
     errors_x = []
     errors_y = []
+    delerrors = []
+    delerrors_x = []
+    delerrors_y = []
     mean_error = 0
     
     # unclear if these need to be defined seperately for 2d histograms or if we can just use the existing arrays
@@ -145,75 +212,265 @@ if ret == True:
     
     # it would also be interesting to see if the real distances calculated here and the pixel distances
     # calculated later with imgpoints2 line up
-    real_x_coords = np.arange(0, square_side_length * (board_cols + 1), square_side_length)
-    real_y_coords = np.arange(0, square_side_length * (board_rows + 1), square_side_length)
     
-    print("real x coords")
-    print(real_x_coords)
-    print("real y coords")
-    print(real_y_coords)
+
     
-    image_data = np.zeros((len(real_x_coords), len(real_y_coords)))
+    # loop through the bottom row of columns
+    # measure the distance between it and points in that column above it
     
-    print("image_data (empty)")
-    print(image_data)
+    # modify this so you compare the bottom row against itself
     
-    # five four loops with changing images (from an array)
-    
-    # sorry for the four for loops 😪
     for c1 in range(board_cols):
-        for r1 in range(board_rows):
+        
+        p1_real = [ (c1 + 1) * square_side_length , 
+                    board_rows * square_side_length ]
+        
+        p1_pixel = corners4[(board_rows * board_cols - 1) - (c1 * board_rows)][0]
+        
+        if debug:
+            print("for p1 : " + str(p1_real) + " // " + str(p1_pixel))
             
-            # was having trouble directly getting these from objpoints
-            # so we manually calculate them, making sure they match the form of
-            # corners2 (i.e. - starting from the top right corner and going down rows in each column)
-            p1_real = [ (board_cols - c1 - 1) * square_side_length ,
-                        r1 * square_side_length] 
+        for r2 in range(board_rows):
             
-            p1_pixel = corners2[c1 * board_rows + r1][0]
+            p2_real = [ (c1 + 1) * square_side_length , 
+                        (board_rows - r2) * square_side_length ]
+            
+            p2_pixel = corners4[(board_rows * board_cols - 1) - (c1 * board_rows) - r2][0]
             
             if debug:
-                print("for r1, c1 " + str(r1) + ", " + str(c1))
-                print("p1 real / p1_pixel " + str(p1_real) + ", " + str(p1_pixel))
+                print("for p2 : " + str(p2_real) + " // " + str(p2_pixel))
+                
+            real_distance = np.sqrt( (p2_real[0] - p1_real[0]) ** 2 + (p2_real[1] - p1_real[1]) ** 2 )
+            
+            # distance_y has the opposite order so that the sign is correct
+            real_distance_x = p2_real[0] - p1_real[0]
+            real_distance_y = p1_real[1] - p2_real[1]
+            
+            pixel_distance = np.sqrt( (p2_pixel[0] - p1_pixel[0]) ** 2 + (p2_pixel[1] - p1_pixel[1]) ** 2 )
+            
+            pixel_distance_x = p2_pixel[0] - p1_pixel[0]
+            pixel_distance_y = p1_pixel[1] - p2_pixel[1]
+            
+            theo_distance = pixel_distance * mm_pixel_ratio
+            theo_distance_x = pixel_distance_x * mm_pixel_ratio 
+            theo_distance_y = pixel_distance_y * mm_pixel_ratio
+            
+            errors.append(theo_distance - real_distance)
+            errors_x.append(theo_distance_x - real_distance_x)
+            errors_y.append(theo_distance_y - real_distance_y)
             
             
-            for c2 in range(board_cols):
-                for r2 in range(board_rows):
-                    p2_real = [ (board_cols - c2 - 1) * square_side_length ,
-                                r2 * square_side_length] 
-                    p2_pixel = corners2[c2 * board_rows + r2][0]
-                    
-                    real_distance = np.sqrt( (p2_real[0] - p1_real[0]) ** 2 + (p2_real[1] - p1_real[1]) ** 2 )
-                    
-                    real_distance_x = p2_real[0] - p1_real[0]
-                    real_distance_y = p2_real[1] - p1_real[1]
-                    
-                    pixel_distance = np.sqrt( (p2_pixel[0] - p1_pixel[0]) ** 2 + (p2_pixel[1] - p1_pixel[1]) ** 2 )
-                    
-                    pixel_distance_x = p2_pixel[0] - p1_pixel[0]
-                    pixel_distance_y = p2_pixel[1] - p1_pixel[1]
-                    
-                    theo_distance = pixel_distance * mm_pixel_ratio
-                    theo_distance_x = pixel_distance_x * mm_pixel_ratio 
-                    theo_distance_y = pixel_distance_y * mm_pixel_ratio
-                    
-                    errors.append(theo_distance - real_distance)
-                    errors_x.append(theo_distance_x - real_distance_x)
-                    errors_y.append(theo_distance_y - real_distance_y)
-                    
-                    if debug:
-                        print("for r2, c2 " + str(r2) + ", " + str(c2))
-                        print("p2 real / p2_pixel " + str(p2_real) + ", " + str(p2_pixel))
-                        print("real distance : " + str(real_distance) )
-                        print("pixel_distance : " + str(pixel_distance) )
-                        print("theoretical real distance : " + str(theo_distance))
-      
-    #to do.. determine bin number in a smarter way...
-    
+            
+            
+            """
+            for p2 : [468, 132] // [1148.6586   482.43848]
+            real distance : 48.0 | pixel_distance : 104.22389737663727 | theoretical real distance : 46.47958926741875
+            error : -1.5204107325812473 | error_x : 1.0076540330778292 | error_y : 1.531334731697207
+            delta error : 0.4575718061970804 | delta error_x : -0.021060840305077537 | delta error_y : -0.45757890518490285
+            for p2 : [468, 120] // [1149.1991   456.40964]
+            real distance : 60.0 | pixel_distance : 130.2583395362692 | theoretical real distance : 58.08988411192253
+            error : -1.9101158880774705 | error_x : 1.2487070886406941 | error_y : 1.9235386172386626
+            delta error : -4.303620172049829 | delta error_x : -0.01439894606964267 | delta error_y : 4.303643518000001
+            """
+            
+            # double check the indexing here later, sometimes the delta is too big? 
+            if (c1 + r2) > 0:
+                delerrors.append(errors[c1 + r2] - errors[c1 + r2 - 1])
+                delerrors_x.append(errors_x[c1 + r2] - errors_x[c1 + r2 - 1])
+                delerrors_y.append(errors_y[c1 + r2] - errors_y[c1 + r2 - 1])
+            
+            if debug:
+                print("real distance : " + str(real_distance) + " | " + "pixel_distance : " + str(pixel_distance)  + " | " + "theoretical real distance : " + str(theo_distance) )
+                print("real distance x: " + str(real_distance_x) + " | " + "pixel_distance x: " + str(pixel_distance_x)  + " | " + "theoretical real distance x: " + str(theo_distance_x) )
+                print("real distance y: " + str(real_distance_y) + " | " + "pixel_distance y: " + str(pixel_distance_y)  + " | " + "theoretical real distance y: " + str(theo_distance_y) )
+                print("error : " + str(theo_distance - real_distance) + " | " + "error_x : " + str(theo_distance_x - real_distance_x)  + " | " + "error_y : " + str(theo_distance_y - real_distance_y) )
+                if (c1 + r2) > 0:
+                    print("delta error : " + str(errors[c1 + r2] - errors[c1 + r2 - 1]) + " | " + "delta error_x : " + str(errors_x[c1 + r2] - errors_x[c1 + r2 - 1])  + " | " + "delta error_y : " + str(errors_y[c1 + r2] - errors_y[c1 + r2 - 1]) )
+ 
+    # really important to do:
+        # retrieve all the x and y points associated with the error calculation array
+        # plot them here
+        
+        # work on your poster presentation
+        # https://research.mnsu.edu/undergraduate-research-center/undergraduate-research-center-present-and-publish/undergraduate-research-symposium/
+ 
+       
     abs_errors = np.abs(errors)
     abs_errors_x = np.abs(errors_x)
     abs_errors_y = np.abs(errors_y)
     
+    plt.figure(dpi=300)
+    plt.imshow(gray_image)
+    plt.show()
+    plt.imshow(undistorted)
+    plt.show()
+    
+    # should this part be using the real world distances, or pixel locations, or...?
+    # > should probably be pixels. keep this code but use the conversion later to make some isolated contour plots without the overlay
+    x_array = np.arange(square_side_length, square_side_length * (board_cols + 1), square_side_length)
+    y_array = np.arange(square_side_length, square_side_length * (board_rows + 1), square_side_length)
+    
+    print("real x coords")
+    print(x_array)
+    print("real y coords")
+    print(y_array)
+        
+    x_arranged, y_arranged = np.meshgrid(x_array, y_array)
+    
+    print("x_arranged")
+    print(x_arranged)
+    print("y_arranged")
+    print(y_arranged)
+    
+    e_array = np.array(errors)
+    x_e_array = np.array(errors_x)
+    y_e_array = np.array(errors_y)
+    
+    e_arranged = e_array.reshape((board_cols,board_rows))    
+    x_e_arranged = x_e_array.reshape((board_cols,board_rows)) 
+    y_e_arranged = y_e_array.reshape((board_cols,board_rows))    
+    
+    print("errors")
+    print(errors)
+    print("e_array")
+    print(e_array)
+    print("e_arranged")
+    print(e_arranged)
+    
+    e_arranged = np.rot90(e_arranged)
+    
+    print("rot90 e_arranged")
+    print(e_arranged)
+    
+    e_arranged = np.flip(e_arranged)
+    e_arranged = np.fliplr(e_arranged)
+    
+    print("flip e_arranged")
+    print(e_arranged)
+    
+    print('x_e_arranged')
+    print(x_e_arranged)
+    x_e_arranged = np.rot90(x_e_arranged)
+    print('rot x_e_arranged')
+    print(x_e_arranged)
+    x_e_arranged = np.flip(x_e_arranged)
+    print('flip x_e_arranged')
+    print(x_e_arranged)
+    x_e_arranged = np.fliplr(x_e_arranged)
+    print('fliplr x_e_arranged')
+    print(x_e_arranged)
+    
+    
+    print('y_e_arranged')
+    print(y_e_arranged)
+    y_e_arranged = np.rot90(y_e_arranged)
+    print('rot x_e_arranged')
+    print(x_e_arranged)
+    y_e_arranged = np.flip(y_e_arranged)
+    print('flip x_e_arranged')
+    print(x_e_arranged)
+    y_e_arranged = np.fliplr(y_e_arranged)
+    print('flip lrx_e_arranged')
+    print(x_e_arranged)
+    
+    # check out the example below and figure out how to reshape errors so its correct
+    
+    # todo: learn more abt subplots
+    # make more of these that show x and y error once u know the syntax is right
+    contourfig, ax2 = plt.subplots(layout = 'constrained')
+    CS = ax2.contourf(x_arranged, y_arranged, e_arranged, levels = 25, cmap = 'inferno')
+    CS2 = ax2.contour(CS, levels = CS.levels[::2], colors='b')
+    ax2.set_title('Error in Calculated Real Distance from Bottom')
+    ax2.set_xlabel('?')
+    ax2.set_ylabel('?') # not sure what to label these
+    cbar = contourfig.colorbar(CS)
+    cbar.ax.set_ylabel('Error Magnitude')
+    cbar.add_lines(CS2)
+    
+    plt.show()
+
+    xcontourfig, xax2 = plt.subplots(layout = 'constrained')
+    xCS = xax2.contourf(x_arranged, y_arranged, x_e_arranged, levels = 25, cmap = 'inferno')
+    xCS2 = xax2.contour(xCS, levels = xCS.levels[::2], colors='b')
+    xax2.set_title('Error in Calculated X Real Distance from Bottom')
+    xax2.set_xlabel('?')
+    xax2.set_ylabel('?') # not sure what to label these
+    xcbar = xcontourfig.colorbar(xCS)
+    xcbar.ax.set_ylabel('Error Magnitude')
+    xcbar.add_lines(xCS2)
+    
+    plt.show()
+    
+    ycontourfig, yax2 = plt.subplots(layout = 'constrained')
+    yCS = yax2.contourf(x_arranged, y_arranged, y_e_arranged, levels = 25, cmap = 'inferno')
+    yCS2 = yax2.contour(yCS, levels = yCS.levels[::2], colors='b')
+    yax2.set_title('Error in Calculated Y Real Distance from Bottom')
+    yax2.set_xlabel('?')
+    yax2.set_ylabel('?') # not sure what to label these
+    ycbar = ycontourfig.colorbar(yCS)
+    ycbar.ax.set_ylabel('Error Magnitude')
+    ycbar.add_lines(yCS2)
+    
+    plt.show()
+    
+    # now let's graph these a different way and overlay them on the image
+    
+    # first we need to build a new x array and y array based on the corners in corners2 
+    
+    x_px_array = np.zeros((board_rows,board_cols))
+    y_px_array = np.zeros((board_rows,board_cols))
+
+    print('x/y px array zeroes')
+    print(x_px_array)
+
+    for row in range(board_rows):
+        for col in range(board_cols):
+            x_px_array[row, col] = corners4[board_rows * board_cols - 1 - row - (col * board_rows)][0][0]
+            y_px_array[row, col] = corners4[board_rows * board_cols - 1 - row - (col * board_rows)][0][1]
+    
+    print('x px array filled')
+    print(x_px_array)
+    print('y px array filled')
+    print(y_px_array)
+            
+    overlayfig, ax3 = plt.subplots(layout = 'constrained')     
+    ax3.imshow(undistorted, cmap = 'gray')
+    ax3.set_title('Error in Calculated Real Distance from Bottom of Target')
+    overlay_contour = ax3.contourf(x_px_array, y_px_array, e_arranged, levels = 25, cmap = 'viridis', alpha = 0.7)   
+    overlay_contour2 = ax3.contour(overlay_contour, levels = overlay_contour.levels[::2], colors='b')
+    ocbar = overlayfig.colorbar(overlay_contour)
+    ocbar.ax.set_ylabel('Error Magnitude (mm)')
+    ocbar.add_lines(overlay_contour2)
+    
+    plt.show()
+    
+    xoverlayfig, xax3 = plt.subplots(layout = 'constrained')     
+    xax3.imshow(undistorted, cmap = 'gray')
+    xax3.set_title('Error in Calculated Real X Axis Distance from Bottom of Target')
+    xoverlay_contour = xax3.contourf(x_px_array, y_px_array, x_e_arranged, levels = 25, cmap = 'viridis', alpha = 0.7)   
+    xoverlay_contour2 = xax3.contour(xoverlay_contour, levels = xoverlay_contour.levels[::2], colors='b')
+    xocbar = xoverlayfig.colorbar(xoverlay_contour)
+    xocbar.ax.set_ylabel('Error Magnitude (mm)')
+    xocbar.add_lines(xoverlay_contour2)
+    
+    plt.show()
+    
+    yoverlayfig, yax3 = plt.subplots(layout = 'constrained')     
+    yax3.imshow(undistorted, cmap = 'gray')
+    yax3.set_title('Error in Calculated Real Y Axis Distance from Bottom of Target')
+    yoverlay_contour = yax3.contourf(x_px_array, y_px_array, y_e_arranged, levels = 25, cmap = 'viridis', alpha = 0.7)   
+    yoverlay_contour2 = yax3.contour(yoverlay_contour, levels = yoverlay_contour.levels[::2], colors='b')
+    yocbar = yoverlayfig.colorbar(yoverlay_contour)
+    yocbar.ax.set_ylabel('Error Magnitude (mm)')
+    yocbar.add_lines(overlay_contour2)
+    
+    plt.show()
+
+#https://matplotlib.org/stable/gallery/images_contours_and_fields/layer_images.html
+#https://matplotlib.org/stable/gallery/images_contours_and_fields/contourf_demo.html
+
+# todo: refactor so you're using the same kind of syntax as you do w/ the contour plot above
+
     plt.hist(errors, bins = 20, edgecolor='black')
     plt.xlabel("Error (mm)")
     plt.ylabel("Frequency")
@@ -230,6 +487,24 @@ if ret == True:
     plt.xlabel("Y Error (mm)")
     plt.ylabel("Frequency")
     plt.title("Total Y Distance Error Distribution")
+    plt.show()
+    
+    plt.hist(delerrors, bins = 20, edgecolor='black')
+    plt.xlabel("Error (mm)")
+    plt.ylabel("Frequency")
+    plt.title("Total Distance Error Delta Distribution")
+    plt.show()
+        
+    plt.hist(delerrors_x, bins = 20, edgecolor='black')
+    plt.xlabel("X Error (mm)")
+    plt.ylabel("Frequency")
+    plt.title("Total X Distance Error Delta Distribution")
+    plt.show()
+    
+    plt.hist(delerrors_y, bins = 20, edgecolor='black')
+    plt.xlabel("Y Error (mm)")
+    plt.ylabel("Frequency")
+    plt.title("Total Y Distance Error Delta Distribution")
     plt.show()
     
     plt.hist(abs_errors, bins = 20, edgecolor='black')
@@ -308,71 +583,9 @@ if ret == True:
     print("Y Distance Error Percentile 25: " + str(np.percentile(errors_y, 25)))
     print("Y Distance Error Percentile 50: " + str(np.percentile(errors_y, 50)))
     print("Y Distance Error Percentile 75: " + str(np.percentile(errors_y, 75)))    
-    print("Y Distance Error Percentile 99: " + str(np.percentile(errors_y, 99)))
+    print("Y Distance Error Percentile 99: " + str(np.percentile(errors_y, 99)))    
     
-    # it would be benefical to look at how this changes if we ONLY look at the x/y axis
     
-    # also, we should graph the x/y error at each point we calculate it at - 
-    
-    # now, let's calibrate the camera matrix, and use it to undistort the image
-    # opencv needs a set of points in the real world and in the image to do this
-    # the cursed numpy addressing gives the function the resolution of the image the way it likes
-    # but i'm not 100% sure on how that parameter affects the final matrix 
-    # i imagine it would change the image center or focal length or something to be in terms of pixels?
-    
-    # i wonder if we could improve this by finding objpoints and imgpoints for a set of images 
-    # where the calibration target moves along the z axis
-    # or develop a calibration target with some 3d element to it
-    
-    ret, mtx, dist, rvecs, tvecs = cv.calibrateCamera(objpoints, imgpoints, gray_image.shape[::-1], None, None)
-    
-    print("intrinsic parameter matrix:")
-    print(mtx)
-    print("distortion parameters:")  # check to see if the x and y distortion equations are different
-    print(dist)
-    print("rotation matrix:")
-    print(rvecs)
-    print("translation matrix:")
-    print(tvecs)
-    
-    #calibrateCamera returns even more data such as standard deviations etc
-    # read the docs here: https://docs.opencv.org/4.x/d9/d0c/group__calib3d.html#ga3207604e4b1a1758aa66acb6ed5aa65d 
-    
-    # the opencv docs provide this method of calculating error, which to my understanding,
-    # goes through every point and finds the imgpoint it *should* occupy 
-    
-    # the fancy way they do this makes me feel like my loop could be optimized a lot
-    # ( which was already obvious, but, )
-    # i don't know what the norm of an array/matrix stuff does i need to research that
-    
-    projection_error_abs = 0 
-    projection_error_mean = 0 
-    
-    for i in range(len(objpoints)):
-        imgpoints2, _ = cv.projectPoints(objpoints[i], rvecs[i], tvecs[i], mtx, dist)
-        error = cv.norm(imgpoints[i], imgpoints2, cv.NORM_L2)/len(imgpoints2) # ??? 😐
-        projection_error_abs += error
-        
-    # to do - loop through imgpoints and collect distance between points in each array
-        
-    projection_error_mean = projection_error_abs / len(objpoints)
-    
-    print("absolute projection error:")
-    print(projection_error_abs)
-    print("mean projection error:")
-    print(projection_error_mean)
-    
-    # we can undistort the original image
-    # (and perhaps, considering the fisheye lens, relocate image points and improve our result?)
-    # (so the ratio is linear across the image?)
-    # ( that would take reformating the code a little to bundle some of the above into functions and etc... )
-    undistorted = cv.undistort(gray_image, mtx, dist, None)
-    
-    # we can also find a new camera matrix, with a new image with the same camera in a different position
-    # and call undistort again, with the new image and an additional argument (the new matrix)
-
-    # to-do: learn more about distortion coefficients and how they relate obj/img points
-    # maybe see what the output is like with artificial images
     
     # to-do: 
         # create some descriptions of the central tendency of the data
