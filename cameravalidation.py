@@ -178,13 +178,14 @@ if ret == True:
                 
             real_distance = np.sqrt( (p2_real[0] - p1_real[0]) ** 2 + (p2_real[1] - p1_real[1]) ** 2 )
             
+            # distance_y has the opposite order so that the sign is correct
             real_distance_x = p2_real[0] - p1_real[0]
-            real_distance_y = p2_real[1] - p1_real[1]
+            real_distance_y = p1_real[1] - p2_real[1]
             
             pixel_distance = np.sqrt( (p2_pixel[0] - p1_pixel[0]) ** 2 + (p2_pixel[1] - p1_pixel[1]) ** 2 )
             
             pixel_distance_x = p2_pixel[0] - p1_pixel[0]
-            pixel_distance_y = p2_pixel[1] - p1_pixel[1]
+            pixel_distance_y = p1_pixel[1] - p2_pixel[1]
             
             theo_distance = pixel_distance * mm_pixel_ratio
             theo_distance_x = pixel_distance_x * mm_pixel_ratio 
@@ -216,6 +217,8 @@ if ret == True:
             
             if debug:
                 print("real distance : " + str(real_distance) + " | " + "pixel_distance : " + str(pixel_distance)  + " | " + "theoretical real distance : " + str(theo_distance) )
+                print("real distance x: " + str(real_distance_x) + " | " + "pixel_distance x: " + str(pixel_distance_x)  + " | " + "theoretical real distance x: " + str(theo_distance_x) )
+                print("real distance y: " + str(real_distance_y) + " | " + "pixel_distance y: " + str(pixel_distance_y)  + " | " + "theoretical real distance y: " + str(theo_distance_y) )
                 print("error : " + str(theo_distance - real_distance) + " | " + "error_x : " + str(theo_distance_x - real_distance_x)  + " | " + "error_y : " + str(theo_distance_y - real_distance_y) )
                 if (c1 + r2) > 0:
                     print("delta error : " + str(errors[c1 + r2] - errors[c1 + r2 - 1]) + " | " + "delta error_x : " + str(errors_x[c1 + r2] - errors_x[c1 + r2 - 1])  + " | " + "delta error_y : " + str(errors_y[c1 + r2] - errors_y[c1 + r2 - 1]) )
@@ -272,15 +275,35 @@ if ret == True:
     print(e_arranged)
     
     e_arranged = np.flip(e_arranged)
+    e_arranged = np.fliplr(e_arranged)
     
     print("flip e_arranged")
     print(e_arranged)
     
+    print('x_e_arranged')
+    print(x_e_arranged)
     x_e_arranged = np.rot90(x_e_arranged)
+    print('rot x_e_arranged')
+    print(x_e_arranged)
     x_e_arranged = np.flip(x_e_arranged)
+    print('flip x_e_arranged')
+    print(x_e_arranged)
+    x_e_arranged = np.fliplr(x_e_arranged)
+    print('fliplr x_e_arranged')
+    print(x_e_arranged)
     
+    
+    print('y_e_arranged')
+    print(y_e_arranged)
     y_e_arranged = np.rot90(y_e_arranged)
+    print('rot x_e_arranged')
+    print(x_e_arranged)
     y_e_arranged = np.flip(y_e_arranged)
+    print('flip x_e_arranged')
+    print(x_e_arranged)
+    y_e_arranged = np.fliplr(y_e_arranged)
+    print('flip lrx_e_arranged')
+    print(x_e_arranged)
     
     # check out the example below and figure out how to reshape errors so its correct
     
@@ -288,7 +311,7 @@ if ret == True:
     # make more of these that show x and y error once u know the syntax is right
     contourfig, ax2 = plt.subplots(layout = 'constrained')
     CS = ax2.contourf(x_arranged, y_arranged, e_arranged, levels = 25, cmap = 'inferno')
-    CS2 = ax2.contour(CS, levels = CS.levels[::2], colors='r')
+    CS2 = ax2.contour(CS, levels = CS.levels[::2], colors='b')
     ax2.set_title('Error in Calculated Real Distance from Bottom')
     ax2.set_xlabel('?')
     ax2.set_ylabel('?') # not sure what to label these
@@ -300,7 +323,7 @@ if ret == True:
 
     xcontourfig, xax2 = plt.subplots(layout = 'constrained')
     xCS = xax2.contourf(x_arranged, y_arranged, x_e_arranged, levels = 25, cmap = 'inferno')
-    xCS2 = xax2.contour(xCS, levels = xCS.levels[::2], colors='r')
+    xCS2 = xax2.contour(xCS, levels = xCS.levels[::2], colors='b')
     xax2.set_title('Error in Calculated X Real Distance from Bottom')
     xax2.set_xlabel('?')
     xax2.set_ylabel('?') # not sure what to label these
@@ -312,7 +335,7 @@ if ret == True:
     
     ycontourfig, yax2 = plt.subplots(layout = 'constrained')
     yCS = yax2.contourf(x_arranged, y_arranged, y_e_arranged, levels = 25, cmap = 'inferno')
-    yCS2 = yax2.contour(yCS, levels = yCS.levels[::2], colors='r')
+    yCS2 = yax2.contour(yCS, levels = yCS.levels[::2], colors='b')
     yax2.set_title('Error in Calculated Y Real Distance from Bottom')
     yax2.set_xlabel('?')
     yax2.set_ylabel('?') # not sure what to label these
@@ -322,6 +345,58 @@ if ret == True:
     
     plt.show()
     
+    # now let's graph these a different way and overlay them on the image
+    
+    # first we need to build a new x array and y array based on the corners in corners2 
+    
+    x_px_array = np.zeros((board_rows,board_cols))
+    y_px_array = np.zeros((board_rows,board_cols))
+
+    print('x/y px array zeroes')
+    print(x_px_array)
+
+    for row in range(board_rows):
+        for col in range(board_cols):
+            x_px_array[row, col] = corners2[board_rows * board_cols - 1 - row - (col * board_rows)][0][0]
+            y_px_array[row, col] = corners2[board_rows * board_cols - 1 - row - (col * board_rows)][0][1]
+            
+    print('x px array filled')
+    print(x_px_array)
+    print('y px array filled')
+    print(y_px_array)
+            
+    overlayfig, ax3 = plt.subplots(layout = 'constrained')     
+    ax3.imshow(gray_image, cmap = 'gray')
+    ax3.set_title('Error in Calculated Real Distance from Bottom of Target')
+    overlay_contour = ax3.contourf(x_px_array, y_px_array, e_arranged, levels = 25, cmap = 'viridis', alpha = 0.7)   
+    overlay_contour2 = ax3.contour(overlay_contour, levels = overlay_contour.levels[::2], colors='b')
+    ocbar = overlayfig.colorbar(overlay_contour)
+    ocbar.ax.set_ylabel('Error Magnitude (mm)')
+    ocbar.add_lines(overlay_contour2)
+    
+    plt.show()
+    
+    xoverlayfig, xax3 = plt.subplots(layout = 'constrained')     
+    xax3.imshow(gray_image, cmap = 'gray')
+    xax3.set_title('Error in Calculated Real X Axis Distance from Bottom of Target')
+    xoverlay_contour = xax3.contourf(x_px_array, y_px_array, x_e_arranged, levels = 25, cmap = 'viridis', alpha = 0.7)   
+    xoverlay_contour2 = xax3.contour(xoverlay_contour, levels = xoverlay_contour.levels[::2], colors='b')
+    xocbar = xoverlayfig.colorbar(xoverlay_contour)
+    xocbar.ax.set_ylabel('Error Magnitude (mm)')
+    xocbar.add_lines(xoverlay_contour2)
+    
+    plt.show()
+    
+    yoverlayfig, yax3 = plt.subplots(layout = 'constrained')     
+    yax3.imshow(gray_image, cmap = 'gray')
+    yax3.set_title('Error in Calculated Real Y Axis Distance from Bottom of Target')
+    yoverlay_contour = yax3.contourf(x_px_array, y_px_array, y_e_arranged, levels = 25, cmap = 'viridis', alpha = 0.7)   
+    yoverlay_contour2 = yax3.contour(yoverlay_contour, levels = yoverlay_contour.levels[::2], colors='b')
+    yocbar = yoverlayfig.colorbar(yoverlay_contour)
+    yocbar.ax.set_ylabel('Error Magnitude (mm)')
+    yocbar.add_lines(overlay_contour2)
+    
+    plt.show()
 
 #https://matplotlib.org/stable/gallery/images_contours_and_fields/layer_images.html
 #https://matplotlib.org/stable/gallery/images_contours_and_fields/contourf_demo.html
