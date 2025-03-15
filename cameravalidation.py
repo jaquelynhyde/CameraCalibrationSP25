@@ -255,9 +255,9 @@ if ret == True:
     x_e_array = np.array(errors_x)
     y_e_array = np.array(errors_y)
     
-    e_arranged = e_array.reshape((board_rows,board_cols))    
-    x_e_arranged = x_e_array.reshape((board_rows,board_cols)) 
-    y_e_arranged = y_e_array.reshape((board_rows,board_cols))    
+    e_arranged = e_array.reshape((board_cols,board_rows))    
+    x_e_arranged = x_e_array.reshape((board_cols,board_rows)) 
+    y_e_arranged = y_e_array.reshape((board_cols,board_rows))    
     
     print("errors")
     print(errors)
@@ -266,14 +266,28 @@ if ret == True:
     print("e_arranged")
     print(e_arranged)
     
-    plt.imshow(gray_image)
+    e_arranged = np.rot90(e_arranged)
+    
+    print("rot90 e_arranged")
+    print(e_arranged)
+    
+    e_arranged = np.flip(e_arranged)
+    
+    print("flip e_arranged")
+    print(e_arranged)
+    
+    x_e_arranged = np.rot90(x_e_arranged)
+    x_e_arranged = np.flip(x_e_arranged)
+    
+    y_e_arranged = np.rot90(y_e_arranged)
+    y_e_arranged = np.flip(y_e_arranged)
     
     # check out the example below and figure out how to reshape errors so its correct
     
     # todo: learn more abt subplots
     # make more of these that show x and y error once u know the syntax is right
     contourfig, ax2 = plt.subplots(layout = 'constrained')
-    CS = ax2.contourf(x_arranged, y_arranged, e_arranged, levels = 10, cmap = 'viridis')
+    CS = ax2.contourf(x_arranged, y_arranged, e_arranged, levels = 25, cmap = 'inferno')
     CS2 = ax2.contour(CS, levels = CS.levels[::2], colors='r')
     ax2.set_title('Error in Calculated Real Distance from Bottom')
     ax2.set_xlabel('?')
@@ -283,9 +297,9 @@ if ret == True:
     cbar.add_lines(CS2)
     
     plt.show()
-    
+
     xcontourfig, xax2 = plt.subplots(layout = 'constrained')
-    xCS = xax2.contourf(x_arranged, y_arranged, x_e_arranged, levels = 10, cmap = 'inferno')
+    xCS = xax2.contourf(x_arranged, y_arranged, x_e_arranged, levels = 25, cmap = 'inferno')
     xCS2 = xax2.contour(xCS, levels = xCS.levels[::2], colors='r')
     xax2.set_title('Error in Calculated X Real Distance from Bottom')
     xax2.set_xlabel('?')
@@ -297,7 +311,7 @@ if ret == True:
     plt.show()
     
     ycontourfig, yax2 = plt.subplots(layout = 'constrained')
-    yCS = yax2.contourf(x_arranged, y_arranged, y_e_arranged, levels = 10, cmap = 'plasma')
+    yCS = yax2.contourf(x_arranged, y_arranged, y_e_arranged, levels = 25, cmap = 'inferno')
     yCS2 = yax2.contour(yCS, levels = yCS.levels[::2], colors='r')
     yax2.set_title('Error in Calculated Y Real Distance from Bottom')
     yax2.set_xlabel('?')
@@ -308,7 +322,7 @@ if ret == True:
     
     plt.show()
     
-    
+
 #https://matplotlib.org/stable/gallery/images_contours_and_fields/layer_images.html
 #https://matplotlib.org/stable/gallery/images_contours_and_fields/contourf_demo.html
 
