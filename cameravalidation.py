@@ -214,6 +214,11 @@ if ret == True:
                 delerrors.append(errors[c1 + r2] - errors[c1 + r2 - 1])
                 delerrors_x.append(errors_x[c1 + r2] - errors_x[c1 + r2 - 1])
                 delerrors_y.append(errors_y[c1 + r2] - errors_y[c1 + r2 - 1])
+            else:
+                delerrors.append(0)
+                delerrors_x.append(0)
+                delerrors_y.append(0)
+                
             
             if debug:
                 print("real distance : " + str(real_distance) + " | " + "pixel_distance : " + str(pixel_distance)  + " | " + "theoretical real distance : " + str(theo_distance) )
@@ -254,13 +259,23 @@ if ret == True:
     print("y_arranged")
     print(y_arranged)
     
+    # make a version of this that uses del-errors
+    
     e_array = np.array(errors)
     x_e_array = np.array(errors_x)
     y_e_array = np.array(errors_y)
     
+    d_e_array = np.array(delerrors)
+    x_d_e_array = np.array(delerrors_x)
+    y_d_e_array = np.array(delerrors_y)
+        
     e_arranged = e_array.reshape((board_cols,board_rows))    
     x_e_arranged = x_e_array.reshape((board_cols,board_rows)) 
     y_e_arranged = y_e_array.reshape((board_cols,board_rows))    
+    
+    d_e_arranged = d_e_array.reshape((board_cols,board_rows))    
+    x_d_e_arranged = x_d_e_array.reshape((board_cols,board_rows)) 
+    y_d_e_arranged = y_d_e_array.reshape((board_cols,board_rows))    
     
     print("errors")
     print(errors)
@@ -271,11 +286,16 @@ if ret == True:
     
     e_arranged = np.rot90(e_arranged)
     
+    d_e_arranged = np.rot90(d_e_arranged)
+    
     print("rot90 e_arranged")
     print(e_arranged)
     
     e_arranged = np.flip(e_arranged)
     e_arranged = np.fliplr(e_arranged)
+    
+    d_e_arranged = np.flip(d_e_arranged)
+    d_e_arranged = np.fliplr(d_e_arranged)
     
     print("flip e_arranged")
     print(e_arranged)
@@ -292,6 +312,9 @@ if ret == True:
     print('fliplr x_e_arranged')
     print(x_e_arranged)
     
+    x_d_e_arranged = np.rot90(x_d_e_arranged)
+    x_d_e_arranged = np.flip(x_d_e_arranged)
+    x_d_e_arranged = np.fliplr(x_d_e_arranged)
     
     print('y_e_arranged')
     print(y_e_arranged)
@@ -304,6 +327,10 @@ if ret == True:
     y_e_arranged = np.fliplr(y_e_arranged)
     print('flip lrx_e_arranged')
     print(x_e_arranged)
+    
+    y_d_e_arranged = np.rot90(y_d_e_arranged)
+    y_d_e_arranged = np.flip(y_d_e_arranged)
+    y_d_e_arranged = np.fliplr(y_d_e_arranged)
     
     # check out the example below and figure out how to reshape errors so its correct
     
@@ -345,6 +372,42 @@ if ret == True:
     
     plt.show()
     
+    dcontourfig, dax2 = plt.subplots(layout = 'constrained')
+    dCS = dax2.contourf(x_arranged, y_arranged, d_e_arranged, levels = 5, cmap = 'inferno')
+    dCS2 = dax2.contour(dCS, levels = dCS.levels[::2], colors='b')
+    dax2.set_title('Delta Error in Calculated Real Distance from Bottom')
+    dax2.set_xlabel('?')
+    dax2.set_ylabel('?') # not sure what to label these
+    dcbar = dcontourfig.colorbar(dCS)
+    dcbar.ax.set_ylabel('Error Magnitude')
+    dcbar.add_lines(dCS2)
+    
+    plt.show()
+
+    xdcontourfig, xdax2 = plt.subplots(layout = 'constrained')
+    xdCS = xdax2.contourf(x_arranged, y_arranged, x_d_e_arranged, levels = 5, cmap = 'inferno')
+    xdCS2 = xdax2.contour(xdCS, levels = xdCS.levels[::2], colors='b')
+    xdax2.set_title('Error in Calculated X Real Distance from Bottom')
+    xdax2.set_xlabel('?')
+    xdax2.set_ylabel('?') # not sure what to label these
+    xdcbar = xdcontourfig.colorbar(xdCS)
+    xdcbar.ax.set_ylabel('Error Magnitude')
+    xdcbar.add_lines(xdCS2)
+    
+    plt.show()
+    
+    ydcontourfig, ydax2 = plt.subplots(layout = 'constrained')
+    ydCS = ydax2.contourf(x_arranged, y_arranged, y_d_e_arranged, levels = 5, cmap = 'inferno')
+    ydCS2 = ydax2.contour(ydCS, levels = ydCS.levels[::2], colors='b')
+    ydax2.set_title('Error in Calculated Y Real Distance from Bottom')
+    ydax2.set_xlabel('?')
+    ydax2.set_ylabel('?') # not sure what to label these
+    ydcbar = ydcontourfig.colorbar(ydCS)
+    ydcbar.ax.set_ylabel('Error Magnitude')
+    ydcbar.add_lines(ydCS2)
+    
+    plt.show()
+    
     # now let's graph these a different way and overlay them on the image
     
     # first we need to build a new x array and y array based on the corners in corners2 
@@ -359,7 +422,7 @@ if ret == True:
         for col in range(board_cols):
             x_px_array[row, col] = corners2[board_rows * board_cols - 1 - row - (col * board_rows)][0][0]
             y_px_array[row, col] = corners2[board_rows * board_cols - 1 - row - (col * board_rows)][0][1]
-            
+    
     print('x px array filled')
     print(x_px_array)
     print('y px array filled')
@@ -395,6 +458,39 @@ if ret == True:
     yocbar = yoverlayfig.colorbar(yoverlay_contour)
     yocbar.ax.set_ylabel('Error Magnitude (mm)')
     yocbar.add_lines(overlay_contour2)
+    
+    plt.show()
+
+    doverlayfig, dax3 = plt.subplots(layout = 'constrained')     
+    dax3.imshow(gray_image, cmap = 'gray')
+    dax3.set_title('Delta Error in Calculated Real Distance from Bottom of Target')
+    doverlay_contour = dax3.contourf(x_px_array, y_px_array, d_e_arranged, levels = 5, cmap = 'viridis', alpha = 0.7)   
+    doverlay_contour2 = dax3.contour(doverlay_contour, levels = doverlay_contour.levels[::2], colors='b')
+    docbar = doverlayfig.colorbar(doverlay_contour)
+    docbar.ax.set_ylabel('Error Magnitude (mm)')
+    docbar.add_lines(doverlay_contour2)
+    
+    plt.show()
+    
+    xdoverlayfig, xdax3 = plt.subplots(layout = 'constrained')     
+    xdax3.imshow(gray_image, cmap = 'gray')
+    xdax3.set_title('Delta Error in Calculated Real X Axis Distance from Bottom of Target')
+    xdoverlay_contour = xdax3.contourf(x_px_array, y_px_array, x_d_e_arranged, levels = 5, cmap = 'viridis', alpha = 0.7)   
+    xdoverlay_contour2 = xdax3.contour(xdoverlay_contour, levels = xdoverlay_contour.levels[::2], colors='b')
+    xdocbar = xdoverlayfig.colorbar(xdoverlay_contour)
+    xdocbar.ax.set_ylabel('Error Magnitude (mm)')
+    xdocbar.add_lines(xdoverlay_contour2)
+    
+    plt.show()
+    
+    ydoverlayfig, ydax3 = plt.subplots(layout = 'constrained')     
+    ydax3.imshow(gray_image, cmap = 'gray')
+    ydax3.set_title('Delta Error in Calculated Real Y Axis Distance from Bottom of Target')
+    ydoverlay_contour = ydax3.contourf(x_px_array, y_px_array, y_d_e_arranged, levels = 5, cmap = 'viridis', alpha = 0.7)   
+    ydoverlay_contour2 = ydax3.contour(ydoverlay_contour, levels = ydoverlay_contour.levels[::2], colors='b')
+    ydocbar = ydoverlayfig.colorbar(ydoverlay_contour)
+    ydocbar.ax.set_ylabel('Error Magnitude (mm)')
+    ydocbar.add_lines(doverlay_contour2)
     
     plt.show()
 
