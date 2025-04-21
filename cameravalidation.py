@@ -50,6 +50,7 @@ print("objp populated")
 print(objp)
 
 objpoints = []
+imgpoints0 = []
 imgpoints = []
 
 # opencv finds the points of the chessboard corners in the image
@@ -66,13 +67,32 @@ if ret == True:
     print("objpoints")
     print(objpoints)
     
-    # refine the locations of the points with 'sub pixels' and save them too
+    # refine the locations of the points with 'sub pixels' 
     corners2 = cv.cornerSubPix(gray_image, corners, (11, 11), (-1, -1), termination_criteria)
     print("corners2")
+    print(corners2)
+    imgpoints0.append(corners2)
+    #print("imgpoints")
+    #print(imgpoints)
+    
+    # calibrate camera matrix of image
+    # undistort the image
+    # find chessboard corners and refine again
+    ret, mtx, dist, rvecs, tvecs = cv.calibrateCamera(objpoints, imgpoints0, gray_image.shape[::-1], None, None)
+    
+    gray_image = cv.undistort(gray_image, mtx, dist, None)
+    ret, corners = cv.findChessboardCorners(gray_image, (board_rows, board_cols), None)
+    
+    # i would've liked to call this corners3 but i don't want to replace every instance of corners2 below so...
+    # replacing the old variable,, something to think strongly about while refactoring
+    corners2 = cv.cornerSubPix(gray_image, corners, (11, 11), (-1, -1), termination_criteria)
+    
+    print("corners3")
     print(corners2)
     imgpoints.append(corners2)
     print("imgpoints")
     print(imgpoints)
+    
 
     # loop through corners2 to find the average distance in pixels between 
     # adjacent squares on the chessboard
@@ -332,30 +352,30 @@ if ret == True:
     y_d_e_arranged = np.flip(y_d_e_arranged)
     y_d_e_arranged = np.fliplr(y_d_e_arranged)
     
-    # check out the example below and figure out how to reshape errors so its correct
+    e_px_arranged = e_arranged / mm_pixel_ratio
     
     # todo: learn more abt subplots
-    # make more of these that show x and y error once u know the syntax is right
+    # make moree of these that show x and y error once u know the syntax is right
     contourfig, ax2 = plt.subplots(layout = 'constrained')
     CS = ax2.contourf(x_arranged, y_arranged, e_arranged, levels = 25, cmap = 'inferno')
-    CS2 = ax2.contour(CS, levels = CS.levels[::2], colors='b')
-    ax2.set_title('Error in Calculated Real Distance from Bottom')
-    ax2.set_xlabel('?')
-    ax2.set_ylabel('?') # not sure what to label these
+#    CS2 = ax2.contour(CS, levels = CS.levels[::2], colors='b')
+#    ax2.set_title('$ \epsilon $ in Calculated Real Distance from Bottom')
+    ax2.set_xlabel('x location (mm)')
+    ax2.set_ylabel('y location (mm)') # not sure what to label these
     cbar = contourfig.colorbar(CS)
-    cbar.ax.set_ylabel('Error Magnitude')
-    cbar.add_lines(CS2)
+    cbar.ax.set_ylabel('$ \epsilon $ in calculated real distance from bottom (mm)')
+#   cbar.add_lines(CS2)
     
     plt.show()
 
     xcontourfig, xax2 = plt.subplots(layout = 'constrained')
     xCS = xax2.contourf(x_arranged, y_arranged, x_e_arranged, levels = 25, cmap = 'inferno')
     xCS2 = xax2.contour(xCS, levels = xCS.levels[::2], colors='b')
-    xax2.set_title('Error in Calculated X Real Distance from Bottom')
-    xax2.set_xlabel('?')
-    xax2.set_ylabel('?') # not sure what to label these
+#    xax2.set_title('$ \epsilon $ in Calculated X Real Distance from Bottom')
+    xax2.set_xlabel('x location (pixels)')
+    xax2.set_ylabel('y location (pixels)') # not sure what to label these
     xcbar = xcontourfig.colorbar(xCS)
-    xcbar.ax.set_ylabel('Error Magnitude')
+    xcbar.ax.set_ylabel('$ \epsilon $')
     xcbar.add_lines(xCS2)
     
     plt.show()
@@ -363,11 +383,11 @@ if ret == True:
     ycontourfig, yax2 = plt.subplots(layout = 'constrained')
     yCS = yax2.contourf(x_arranged, y_arranged, y_e_arranged, levels = 25, cmap = 'inferno')
     yCS2 = yax2.contour(yCS, levels = yCS.levels[::2], colors='b')
-    yax2.set_title('Error in Calculated Y Real Distance from Bottom')
-    yax2.set_xlabel('?')
-    yax2.set_ylabel('?') # not sure what to label these
+#    yax2.set_title('$ \epsilon $ in Calculated Y Real Distance from Bottom')
+    yax2.set_xlabel('x location (pixels)')
+    yax2.set_ylabel('y location (pixels)') # not sure what to label these
     ycbar = ycontourfig.colorbar(yCS)
-    ycbar.ax.set_ylabel('Error Magnitude')
+    ycbar.ax.set_ylabel('$ \epsilon $')
     ycbar.add_lines(yCS2)
     
     plt.show()
@@ -375,11 +395,11 @@ if ret == True:
     dcontourfig, dax2 = plt.subplots(layout = 'constrained')
     dCS = dax2.contourf(x_arranged, y_arranged, d_e_arranged, levels = 5, cmap = 'inferno')
     dCS2 = dax2.contour(dCS, levels = dCS.levels[::2], colors='b')
-    dax2.set_title('Delta Error in Calculated Real Distance from Bottom')
-    dax2.set_xlabel('?')
-    dax2.set_ylabel('?') # not sure what to label these
+  #  dax2.set_title('Delta $ \epsilon $ in Calculated Real Distance from Bottom')
+    dax2.set_xlabel('x location (pixels)')
+    dax2.set_ylabel('y location (pixels)') # not sure what to label these
     dcbar = dcontourfig.colorbar(dCS)
-    dcbar.ax.set_ylabel('Error Magnitude')
+    dcbar.ax.set_ylabel('$ \epsilon $')
     dcbar.add_lines(dCS2)
     
     plt.show()
@@ -387,11 +407,11 @@ if ret == True:
     xdcontourfig, xdax2 = plt.subplots(layout = 'constrained')
     xdCS = xdax2.contourf(x_arranged, y_arranged, x_d_e_arranged, levels = 5, cmap = 'inferno')
     xdCS2 = xdax2.contour(xdCS, levels = xdCS.levels[::2], colors='b')
-    xdax2.set_title('Error in Calculated X Real Distance from Bottom')
-    xdax2.set_xlabel('?')
-    xdax2.set_ylabel('?') # not sure what to label these
+  #  xdax2.set_title('$ \epsilon $ in Calculated X Real Distance from Bottom')
+    xdax2.set_xlabel('x location (pixels)')
+    xdax2.set_ylabel('y location (pixels)') # not sure what to label these
     xdcbar = xdcontourfig.colorbar(xdCS)
-    xdcbar.ax.set_ylabel('Error Magnitude')
+    xdcbar.ax.set_ylabel('$ \epsilon $')
     xdcbar.add_lines(xdCS2)
     
     plt.show()
@@ -399,11 +419,11 @@ if ret == True:
     ydcontourfig, ydax2 = plt.subplots(layout = 'constrained')
     ydCS = ydax2.contourf(x_arranged, y_arranged, y_d_e_arranged, levels = 5, cmap = 'inferno')
     ydCS2 = ydax2.contour(ydCS, levels = ydCS.levels[::2], colors='b')
-    ydax2.set_title('Error in Calculated Y Real Distance from Bottom')
-    ydax2.set_xlabel('?')
-    ydax2.set_ylabel('?') # not sure what to label these
+ #   ydax2.set_title('$ \epsilon $ in Calculated Y Real Distance from Bottom')
+    ydax2.set_xlabel('x location (pixels)')
+    ydax2.set_ylabel('y location (pixels)') # not sure what to label these
     ydcbar = ydcontourfig.colorbar(ydCS)
-    ydcbar.ax.set_ylabel('Error Magnitude')
+    ydcbar.ax.set_ylabel('$ \epsilon $')
     ydcbar.add_lines(ydCS2)
     
     plt.show()
@@ -430,66 +450,68 @@ if ret == True:
             
     overlayfig, ax3 = plt.subplots(layout = 'constrained')     
     ax3.imshow(gray_image, cmap = 'gray')
-    ax3.set_title('Error in Calculated Real Distance from Bottom of Target')
-    overlay_contour = ax3.contourf(x_px_array, y_px_array, e_arranged, levels = 25, cmap = 'viridis', alpha = 0.7)   
-    overlay_contour2 = ax3.contour(overlay_contour, levels = overlay_contour.levels[::2], colors='b')
+  #  ax3.set_title('$ \epsilon $ in Calculated Real Distance from Bottom of Target')
+    overlay_contour = ax3.contourf(x_px_array, y_px_array, e_px_arranged, levels = 25, cmap = 'viridis', alpha = 0.7)   
+  #  overlay_contour2 = ax3.contour(overlay_contour, levels = overlay_contour.levels[::2], colors='b')
+    ax3.set_xlabel('x location (pixels)')
+    ax3.set_ylabel('y location (pixels)') # not sure what to label these
     ocbar = overlayfig.colorbar(overlay_contour)
-    ocbar.ax.set_ylabel('Error Magnitude (mm)')
-    ocbar.add_lines(overlay_contour2)
+    ocbar.ax.set_ylabel('$ \epsilon $ in corner pixel location from location in orthogonal posing')
+#    ocbar.add_lines(overlay_contour2)
     
     plt.show()
     
     xoverlayfig, xax3 = plt.subplots(layout = 'constrained')     
     xax3.imshow(gray_image, cmap = 'gray')
-    xax3.set_title('Error in Calculated Real X Axis Distance from Bottom of Target')
-    xoverlay_contour = xax3.contourf(x_px_array, y_px_array, x_e_arranged, levels = 25, cmap = 'viridis', alpha = 0.7)   
+  #  xax3.set_title('$ \epsilon $ in Calculated Real X Axis Distance from Bottom of Target')
+    xoverlay_contour = xax3.contourf(x_px_array, y_px_array, x_e_arranged, levels = 25, cmap = 'inferno', alpha = 0.7)   
     xoverlay_contour2 = xax3.contour(xoverlay_contour, levels = xoverlay_contour.levels[::2], colors='b')
     xocbar = xoverlayfig.colorbar(xoverlay_contour)
-    xocbar.ax.set_ylabel('Error Magnitude (mm)')
+    xocbar.ax.set_ylabel('$ \epsilon $ (mm)')
     xocbar.add_lines(xoverlay_contour2)
     
     plt.show()
     
     yoverlayfig, yax3 = plt.subplots(layout = 'constrained')     
     yax3.imshow(gray_image, cmap = 'gray')
-    yax3.set_title('Error in Calculated Real Y Axis Distance from Bottom of Target')
-    yoverlay_contour = yax3.contourf(x_px_array, y_px_array, y_e_arranged, levels = 25, cmap = 'viridis', alpha = 0.7)   
+ #   yax3.set_title('$ \epsilon $in Calculated Real Y Axis Distance from Bottom of Target')
+    yoverlay_contour = yax3.contourf(x_px_array, y_px_array, y_e_arranged, levels = 25, cmap = 'inferno', alpha = 0.7)   
     yoverlay_contour2 = yax3.contour(yoverlay_contour, levels = yoverlay_contour.levels[::2], colors='b')
-    yocbar = yoverlayfig.colorbar(yoverlay_contour)
-    yocbar.ax.set_ylabel('Error Magnitude (mm)')
-    yocbar.add_lines(overlay_contour2)
+ #   yocbar = yoverlayfig.colorbar(yoverlay_contour)
+  #  yocbar.ax.set_ylabel('$ \epsilon $ (mm)')
+ #   yocbar.add_lines(yoverlay_contour2)
     
     plt.show()
 
     doverlayfig, dax3 = plt.subplots(layout = 'constrained')     
     dax3.imshow(gray_image, cmap = 'gray')
-    dax3.set_title('Delta Error in Calculated Real Distance from Bottom of Target')
-    doverlay_contour = dax3.contourf(x_px_array, y_px_array, d_e_arranged, levels = 5, cmap = 'viridis', alpha = 0.7)   
+  #  dax3.set_title('Delta $ \epsilon $ in Calculated Real Distance from Bottom of Target')
+    doverlay_contour = dax3.contourf(x_px_array, y_px_array, d_e_arranged, levels = 5, cmap = 'inferno', alpha = 0.7)   
     doverlay_contour2 = dax3.contour(doverlay_contour, levels = doverlay_contour.levels[::2], colors='b')
     docbar = doverlayfig.colorbar(doverlay_contour)
-    docbar.ax.set_ylabel('Error Magnitude (mm)')
+    docbar.ax.set_ylabel('$ \epsilon $ (mm)')
     docbar.add_lines(doverlay_contour2)
     
     plt.show()
     
     xdoverlayfig, xdax3 = plt.subplots(layout = 'constrained')     
     xdax3.imshow(gray_image, cmap = 'gray')
-    xdax3.set_title('Delta Error in Calculated Real X Axis Distance from Bottom of Target')
-    xdoverlay_contour = xdax3.contourf(x_px_array, y_px_array, x_d_e_arranged, levels = 5, cmap = 'viridis', alpha = 0.7)   
+  #  xdax3.set_title('Delta $ \epsilon $ in Calculated Real X Axis Distance from Bottom of Target')
+    xdoverlay_contour = xdax3.contourf(x_px_array, y_px_array, x_d_e_arranged, levels = 5, cmap = 'inferno', alpha = 0.7)   
     xdoverlay_contour2 = xdax3.contour(xdoverlay_contour, levels = xdoverlay_contour.levels[::2], colors='b')
     xdocbar = xdoverlayfig.colorbar(xdoverlay_contour)
-    xdocbar.ax.set_ylabel('Error Magnitude (mm)')
+    xdocbar.ax.set_ylabel('$ \epsilon $ (mm)')
     xdocbar.add_lines(xdoverlay_contour2)
     
     plt.show()
     
     ydoverlayfig, ydax3 = plt.subplots(layout = 'constrained')     
     ydax3.imshow(gray_image, cmap = 'gray')
-    ydax3.set_title('Delta Error in Calculated Real Y Axis Distance from Bottom of Target')
-    ydoverlay_contour = ydax3.contourf(x_px_array, y_px_array, y_d_e_arranged, levels = 5, cmap = 'viridis', alpha = 0.7)   
+  #  ydax3.set_title('Delta $ \epsilon $ in Calculated Real Y Axis Distance from Bottom of Target')
+    ydoverlay_contour = ydax3.contourf(x_px_array, y_px_array, y_d_e_arranged, levels = 5, cmap = 'inferno', alpha = 0.7)   
     ydoverlay_contour2 = ydax3.contour(ydoverlay_contour, levels = ydoverlay_contour.levels[::2], colors='b')
     ydocbar = ydoverlayfig.colorbar(ydoverlay_contour)
-    ydocbar.ax.set_ylabel('Error Magnitude (mm)')
+    ydocbar.ax.set_ylabel('$ \epsilon $ (mm)')
     ydocbar.add_lines(doverlay_contour2)
     
     plt.show()
@@ -500,57 +522,57 @@ if ret == True:
 # todo: refactor so you're using the same kind of syntax as you do w/ the contour plot above
 
     plt.hist(errors, bins = 20, edgecolor='black')
-    plt.xlabel("Error (mm)")
+    plt.xlabel("$ \epsilon $ (mm)")
     plt.ylabel("Frequency")
-    plt.title("Total Distance Error Distribution")
+    plt.title("Total Distance $ \epsilon $ Distribution")
     plt.show()
         
     plt.hist(errors_x, bins = 20, edgecolor='black')
-    plt.xlabel("X Error (mm)")
+    plt.xlabel("X $ \epsilon $(mm)")
     plt.ylabel("Frequency")
-    plt.title("Total X Distance Error Distribution")
+    plt.title("Total X Distance $ \epsilon $ Distribution")
     plt.show()
     
     plt.hist(errors_y, bins = 20, edgecolor='black')
-    plt.xlabel("Y Error (mm)")
+    plt.xlabel("Y $ \epsilon $(mm)")
     plt.ylabel("Frequency")
-    plt.title("Total Y Distance Error Distribution")
+    plt.title("Total Y Distance $ \epsilon $ Distribution")
     plt.show()
     
     plt.hist(delerrors, bins = 20, edgecolor='black')
-    plt.xlabel("Error (mm)")
+    plt.xlabel("$ \epsilon $ (mm)")
     plt.ylabel("Frequency")
-    plt.title("Total Distance Error Delta Distribution")
+    plt.title("Total Distance $ \epsilon $ Delta Distribution")
     plt.show()
         
     plt.hist(delerrors_x, bins = 20, edgecolor='black')
-    plt.xlabel("X Error (mm)")
+    plt.xlabel("X $ \epsilon $(mm)")
     plt.ylabel("Frequency")
-    plt.title("Total X Distance Error Delta Distribution")
+    plt.title("Total X Distance $ \epsilon $ Delta Distribution")
     plt.show()
     
     plt.hist(delerrors_y, bins = 20, edgecolor='black')
-    plt.xlabel("Y Error (mm)")
+    plt.xlabel("Y $ \epsilon $(mm)")
     plt.ylabel("Frequency")
-    plt.title("Total Y Distance Error Delta Distribution")
+    plt.title("Total Y Distance $ \epsilon $ Delta Distribution")
     plt.show()
     
     plt.hist(abs_errors, bins = 20, edgecolor='black')
-    plt.xlabel("Error (mm)")
+    plt.xlabel("$ \epsilon $ (mm)")
     plt.ylabel("Frequency")
-    plt.title("Total Absolute Distance Error Distribution")
+    plt.title("Total Absolute Distance $ \epsilon $ Distribution")
     plt.show()
         
     plt.hist(abs_errors_x, bins = 20, edgecolor='black')
-    plt.xlabel("X Error (mm)")
+    plt.xlabel("X $ \epsilon $(mm)")
     plt.ylabel("Frequency")
-    plt.title("Total Absolute X Distance Error Distribution")
+    plt.title("Total Absolute X Distance $ \epsilon $ Distribution")
     plt.show()
     
     plt.hist(abs_errors_y, bins = 20, edgecolor='black')
-    plt.xlabel("Y Error (mm)")
+    plt.xlabel("Y $ \epsilon $ (mm)")
     plt.ylabel("Frequency")
-    plt.title("Total Absolute Y Distance Error Distribution")
+    plt.title("Total Absolute Y Distance $ \epsilon $ Distribution")
     plt.show()
     
     print("abs_Mean Distance Error: " + str(np.mean(abs_errors)))
@@ -613,7 +635,7 @@ if ret == True:
     print("Y Distance Error Percentile 75: " + str(np.percentile(errors_y, 75)))    
     print("Y Distance Error Percentile 99: " + str(np.percentile(errors_y, 99)))    
     
-    ret, mtx, dist, rvecs, tvecs = cv.calibrateCamera(objpoints, imgpoints, gray_image.shape[::-1], None, None)
+   # ret, mtx, dist, rvecs, tvecs = cv.calibrateCamera(objpoints, imgpoints, gray_image.shape[::-1], None, None)
     
     print("intrinsic parameter matrix:")
     print(mtx)
@@ -655,7 +677,7 @@ if ret == True:
     # (and perhaps, considering the fisheye lens, relocate image points and improve our result?)
     # (so the ratio is linear across the image?)
     # ( that would take reformating the code a little to bundle some of the above into functions and etc... )
-    undistorted = cv.undistort(gray_image, mtx, dist, None)
+   # undistorted = cv.undistort(gray_image, mtx, dist, None)
     
     # we can also find a new camera matrix, with a new image with the same camera in a different position
     # and call undistort again, with the new image and an additional argument (the new matrix)
@@ -663,9 +685,5 @@ if ret == True:
     # to-do: learn more about distortion coefficients and how they relate obj/img points
     # maybe see what the output is like with artificial images
     
-    # to-do: 
-        # create some descriptions of the central tendency of the data
-        # i.e. create a histogram of all calculated errors
-        # the bins should be based off value ranges as well as sign
     
 cv.destroyAllWindows()
